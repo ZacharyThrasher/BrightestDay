@@ -16,6 +16,8 @@ use bevy::prelude::*;
 struct PowerHudScenario {
     t: f32,
     placed: bool,
+    /// `--powerhud-shot tp`: no stands (their companions would hide the bot), bot straight ahead.
+    tp: bool,
 }
 
 pub fn build(app: &mut App) {
@@ -23,8 +25,9 @@ pub fn build(app: &mut App) {
     if !args.windows(2).any(|w| w[0] == "--scenario" && w[1] == "powerhud") {
         return;
     }
-    info!("power hud scenario");
-    app.init_resource::<PowerHudScenario>().add_systems(Update, place.run_if(resource_exists::<ActiveWorld>));
+    let tp = args.windows(2).any(|w| w[0] == "--powerhud-shot" && w[1] == "tp");
+    info!("power hud scenario (tp: {tp})");
+    app.insert_resource(PowerHudScenario { tp, ..default() }).add_systems(Update, place.run_if(resource_exists::<ActiveWorld>));
 }
 
 fn grant_all(w: &mut bd_sim::World, id: PlayerId, keys: &[&str]) {
@@ -53,12 +56,13 @@ fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: Re
     let bot = PlayerId(1);
     let w = &mut active.world;
     // You: stand (fired + cooling), logia, then an awakened technique (active, burning).
-    grant_all(w, me, &["star_platinum", "mera_mera", "ultra_instinct"]);
+    let (cooling, mine) = if sc.tp { ("spider_bite", ["spider_bite", "mera_mera", "ultra_instinct"]) } else { ("star_platinum", ["star_platinum", "mera_mera", "ultra_instinct"]) };
+    grant_all(w, me, &mine);
     if let Some(p) = w.player_mut(me) {
         p.willpower = pool;
         p.spawn_shield = 0.0;
     }
-    if let Some(k) = held_of(w, me, "star_platinum") {
+    if let Some(k) = held_of(w, me, cooling).filter(|_| !sc.tp) {
         let slot = if k == 0 { move_sel::HOLD } else { move_sel::move_of(k, move_sel::HOLD) };
         if let Err(e) = w.power_move(me, slot) {
             warn!("power hud scenario: move failed {e:?}");
@@ -76,16 +80,18 @@ fn place(mut sc: ResMut<PowerHudScenario>, time: Res<Time<Real>>, mut active: Re
     let fwd = bd_core::input::look_dir(yaw, 0.0);
     let fwd = bd_core::Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(bd_core::Vec3::NEG_Z);
     if let Some(p) = w.player_mut(bot) {
-        p.mv.pos = pos + fwd * 4.5;
+        let left = bd_core::Vec3::new(fwd.z, 0.0, -fwd.x);
+        p.mv.pos = pos + fwd * if sc.tp { 4.0 } else { 5.0 } + left * if sc.tp { -0.8 } else { 2.2 };
         p.mv.vel = bd_core::Vec3::ZERO;
-        p.input.yaw = yaw + std::f32::consts::PI;
+        p.input.yaw = yaw + std::f32::consts::PI - 0.4;
         p.spawn_shield = 0.0;
     }
-    grant_all(w, bot, &["the_world", "super_saiyan", "gomu_gomu"]);
+    let (bot_cooling, theirs) = if sc.tp { ("hie_hie", ["hie_hie", "kryptonian", "super_saiyan"]) } else { ("the_world", ["the_world", "super_saiyan", "gomu_gomu"]) };
+    grant_all(w, bot, &theirs);
     if let Some(p) = w.player_mut(bot) {
         p.willpower = pool;
     }
-    if let Some(k) = held_of(w, bot, "the_world") {
+    if let Some(k) = held_of(w, bot, bot_cooling) {
         let _ = w.power_move(bot, if k == 0 { move_sel::HOLD } else { move_sel::move_of(k, move_sel::HOLD) });
     }
     if let Some(k) = held_of(w, bot, "gomu_gomu") {

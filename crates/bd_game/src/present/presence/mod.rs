@@ -18,6 +18,7 @@
 //! `assets/tuning/presence.ron` (hot-reloaded). Dev: `BD_PRESENCE_OFF=1` disables everything.
 
 pub mod dev;
+pub mod gather;
 pub mod tier;
 pub mod tuning;
 
@@ -93,6 +94,8 @@ struct Tracked {
     ended: Option<f32>,
     /// Hum voice child entity + its current gain.
     hum: Option<(Entity, f32)>,
+    /// Sampled surroundings for a wide gather.
+    surround: gather::Surround,
     /// Checked the legendary flag in the views once.
     legend_checked: bool,
     /// Current centre + extent (m) this frame.
@@ -116,6 +119,19 @@ struct PresenceState {
     flashes: Vec<(f32, f32, f32)>,
     /// Flash placements from this frame's manifests: (slot, pos, colour, range).
     flash_at: Vec<(usize, Vec3, [f32; 3], f32)>,
+    /// Continuous gathers ([`gather::GatherFx`]).
+    streams: Vec<Stream>,
+}
+
+/// One continuous gather (a hold-to-grow energy object being charged).
+struct Stream {
+    owner: Option<PlayerId>,
+    key: u32,
+    req: gather::GatherFx,
+    /// Seconds since the last request (the stream stops when its writer does).
+    idle: f32,
+    credit: f32,
+    surround: gather::Surround,
 }
 
 #[derive(Component)]
@@ -142,7 +158,8 @@ impl Plugin for PresencePlugin {
             .add_message::<BurstFx>()
             .add_message::<CameraShakeEvent>()
             .add_message::<FovPunch>()
-            .add_message::<crate::net::PredictedCast>();
+            .add_message::<crate::net::PredictedCast>()
+            .add_message::<gather::GatherFx>();
         app.insert_resource(PresenceTuningRes(tuning::load_tuning()))
             .init_resource::<PresenceState>()
             .init_resource::<PresenceIndex>()
@@ -154,7 +171,7 @@ impl Plugin for PresencePlugin {
                     (dev::legendary, presence_events).chain().in_set(PresentSet::Events),
                     dev::strips,
                     // After the construct sync (entities exist, transforms placed this frame).
-                    (presence_beats, presence_pools).chain().after(PresentSet::Sync),
+                    (dev::hold, presence_beats, hold_streams, presence_pools).chain().after(PresentSet::Sync),
                 ),
             )
             .add_systems(OnExit(AppState::InGame), clear);
@@ -164,6 +181,7 @@ impl Plugin for PresencePlugin {
 fn clear(mut commands: Commands, mut st: ResMut<PresenceState>, mut idx: ResMut<PresenceIndex>, hums: Query<Entity, With<PresenceHum>>) {
     st.live.clear();
     st.predicted.clear();
+    st.streams.clear();
     for l in st.lights.iter_mut() {
         *l = None;
     }
@@ -356,6 +374,7 @@ fn track(
         ground_t: 0.0,
         ended: None,
         hum: None,
+        surround: gather::Surround::default(),
         legend_checked: legendary,
         centre: Vec3::ZERO,
         extent: 0.5,
@@ -384,33 +403,6 @@ fn mote(fx: &mut FxParticles, e: Element, pos: Vec3, vel: Vec3, color: [f32; 3],
         _ => (PFlags::PLAIN, 3.5, size, color),
     };
     fx.emit(Emit { kind: PKind::Ballistic, flags, pos, vel, size, color, emissive, life, gravity: 0.0, spin: 3.0, ..default() })
-}
-
-/// A gathering mote: from a shell around `target`, rushing in over `life` (psychic / wind spiral).
-fn gather_mote(fx: &mut FxParticles, e: Element, target: Vec3, radius: f32, color: [f32; 3], size: f32, life: f32) -> bool {
-    let dir = fx.rng.dir();
-    let r = fx.rng.range(radius * 0.6, radius);
-    let life = life * fx.rng.range(0.8, 1.2);
-    if matches!(e, Element::Psychic | Element::Wind) {
-        // A spiral: an orbit whose radius collapses into the centre.
-        let seed = fx.rng.next_u32();
-        let w = if e == Element::Wind { 14.0 } else { 7.0 };
-        return fx.emit(Emit {
-            kind: PKind::Orbit,
-            flags: PFlags::STRETCH,
-            pos: target,
-            vel: Vec3::new(r, w, -r / life),
-            size,
-            color,
-            emissive: 4.0,
-            life,
-            gravity: 0.0,
-            seed,
-            ..default()
-        });
-    }
-    let pos = target + dir * r;
-    mote(fx, e, pos, (target - pos) / life, color, size, life)
 }
 
 /// An idle mote around a live construct, in its element's style.
@@ -602,6 +594,9 @@ fn presence_beats(
     let flashes_ok = comfort.flashes > 0.0;
     let b = &t.budget;
     let mut motes_left = if off { 0 } else { b.max_motes_per_frame };
+    let mut rays = b.max_rays_per_frame;
+    let vox_guard = arena.as_ref().map(|a| a.read());
+    let vox = vox_guard.as_deref();
     // Highest tier first: when the mote budget runs out, the small stuff goes quiet.
     st.live.sort_by(|a, b| b.tier.cmp(&a.tier));
     let mut new_flashes: Vec<(Vec3, [f32; 3], f32, f32)> = Vec::new();
@@ -690,11 +685,15 @@ fn presence_beats(
                 l.gather_credit += feel.gather_rate * el.motes * (0.25 + 0.75 * kk * kk) * dt;
                 let n = (l.gather_credit as u32).min(motes_left).min(64);
                 l.gather_credit -= l.gather_credit.floor();
-                let radius = feel.gather_radius * l.size.max(0.5).sqrt();
-                let life = (window * 0.6).clamp(0.08, 0.5);
-                for _ in 0..n {
-                    gather_mote(&mut fx, l.element, gather_at, radius, l.color, msize, life);
+                let near = held && eye.distance(gather_at) < 2.0;
+                // First person: a small gather in front of the view (never through the camera).
+                let radius = if near { 1.2 } else { feel.gather_radius * l.size.max(0.5).sqrt().min(4.0) };
+                let life = if near { (window * 0.6).clamp(0.08, 0.4) } else { feel.gather_life.min(window.max(0.1)).max(0.08) };
+                if radius > 4.0 && !near {
+                    gather::refresh(&mut l.surround, &mut fx, gather_at, radius, &mut rays, vox, b.surround_samples);
                 }
+                let face = near.then_some(cam_fwd);
+                gather::emit(&mut fx, Some(&l.surround), gather_at, radius, n, l.element, l.color, msize, life, face);
                 motes_left -= n;
             }
             if !l.gather_sfx_done && !feel.gather_sfx.is_empty() {
@@ -821,9 +820,7 @@ fn presence_beats(
                 l.ground_t -= dt;
                 if l.ground_t <= 0.0 {
                     l.ground_t = 0.25;
-                    l.ground = arena.as_ref().and_then(|a| {
-                        bd_core::voxel::raycast(&*a.read(), super::gv(centre), bd_core::Vec3::NEG_Y, t.motion.downdraft_height * k + extent).map(|h| h.point.y)
-                    });
+                    l.ground = vox.and_then(|v| bd_core::voxel::raycast(v, super::gv(centre), bd_core::Vec3::NEG_Y, t.motion.downdraft_height * k + extent).map(|h| h.point.y));
                 }
                 l.ground.is_some()
             };
@@ -907,6 +904,84 @@ fn presence_beats(
 fn smoothstep(a: f32, b: f32, x: f32) -> f32 {
     let k = ((x - a) / (b - a).max(1e-3)).clamp(0.0, 1.0);
     k * k * (3.0 - 2.0 * k)
+}
+
+// ------------------------------------------------------------------------------------ hold streams
+
+/// Continuous gathers ([`gather::GatherFx`]): the stream swells as the held object grows.
+#[allow(clippy::too_many_arguments)]
+fn hold_streams(
+    time: Res<Time>,
+    active: Option<Res<ActiveWorld>>,
+    tuning: Res<PresenceTuningRes>,
+    arena: Option<Res<crate::arena::ArenaWorld>>,
+    cam: Query<&GlobalTransform, With<PlayerCamera>>,
+    mut reqs: MessageReader<gather::GatherFx>,
+    mut st: ResMut<PresenceState>,
+    mut fx: ResMut<FxParticles>,
+) {
+    let t = &tuning.0;
+    if disabled() || !t.enabled {
+        reqs.clear();
+        st.streams.clear();
+        return;
+    }
+    let dt = time.delta_secs().clamp(1e-4, 0.1);
+    let h = &t.hold;
+    let st = &mut *st;
+    for r in reqs.read() {
+        if !(r.at.is_finite() && r.size.is_finite() && r.charge.is_finite()) {
+            continue;
+        }
+        match st.streams.iter_mut().find(|s| s.owner == r.owner && s.key == r.key) {
+            Some(s) => {
+                s.req = *r;
+                s.idle = 0.0;
+            }
+            None => {
+                if st.streams.len() >= h.max_streams.max(1)
+                    && let Some(i) = st.streams.iter().enumerate().max_by(|a, b| a.1.idle.total_cmp(&b.1.idle)).map(|(i, _)| i)
+                {
+                    // Recycle the stalest.
+                    st.streams.swap_remove(i);
+                }
+                st.streams.push(Stream { owner: r.owner, key: r.key, req: *r, idle: 0.0, credit: 0.0, surround: gather::Surround::default() });
+            }
+        }
+    }
+    st.streams.retain(|s| s.idle < 0.25);
+    if st.streams.is_empty() {
+        return;
+    }
+    let Some(active) = active else { return };
+    let (eye, fwd) = cam.single().map_or((Vec3::ZERO, Vec3::NEG_Z), |c| (c.translation(), c.forward().as_vec3()));
+    let vox_guard = arena.as_ref().map(|a| a.read());
+    let vox = vox_guard.as_deref();
+    let mut rays = t.budget.max_rays_per_frame;
+    let mut left = t.budget.max_motes_per_frame / 2;
+    for s in st.streams.iter_mut() {
+        s.idle += dt;
+        let r = s.req;
+        let charge = r.charge.clamp(0.0, 1.0);
+        let size = r.size.clamp(0.05, 80.0);
+        let radius = (h.radius_per_m * size).clamp(h.radius_min, h.radius_max) * (0.5 + 0.5 * charge);
+        let rate = (h.rate_base + h.rate_per_m * size).min(h.rate_max) * (0.3 + 0.7 * charge);
+        s.credit += rate * dt;
+        let n = (s.credit as u32).min(left).min(48);
+        s.credit -= s.credit.floor();
+        left -= n;
+        let near = eye.distance(r.at) < 2.0;
+        let (radius, face) = if near { (radius.min(1.2), Some(fwd)) } else { (radius, None) };
+        if radius > 4.0 {
+            gather::refresh(&mut s.surround, &mut fx, r.at, radius, &mut rays, vox, t.budget.surround_samples);
+        }
+        let corps = r.owner.map_or([1.0; 3], |o| corps_rgb(active.corps_of(o)));
+        let color = r.color.unwrap_or_else(|| mote_color(t, r.element, corps, false));
+        let msize = (0.05 + 0.03 * size.sqrt()).min(0.3) * if near { 0.45 } else { 1.0 };
+        // Far motes take longer to arrive (a readable stream, not a flash).
+        let life = (0.25 + radius / 45.0).min(1.6);
+        gather::emit(&mut fx, Some(&s.surround), r.at, radius, n, r.element, color, msize, life, face);
+    }
 }
 
 // ------------------------------------------------------------------------------------ pools

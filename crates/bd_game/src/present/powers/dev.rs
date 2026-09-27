@@ -21,7 +21,8 @@ struct PowersDev {
     t: f32,
     next: usize,
     started: bool,
-    pins: Vec<(PlayerId, f32, f32)>,
+    /// (bot, metres ahead, lateral, placed-until).
+    pins: Vec<(PlayerId, f32, f32, f32)>,
     look: Option<(f32, f32, f32)>,
     base: Option<(f32, bd_core::Vec3)>,
     refill: bool,
@@ -92,15 +93,17 @@ fn dev_world(
     let fwd = bd_core::Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(bd_core::Vec3::NEG_Z);
     let side = bd_core::Vec3::new(-fwd.z, 0.0, fwd.x);
     let pins = dev.pins.clone();
-    for (bot, d, lat) in pins {
+    let now = dev.t;
+    for (bot, d, lat, until) in pins {
         let want = origin + fwd * d + side * lat;
         let ground = bd_core::voxel::raycast(&active.world.voxels, want + bd_core::Vec3::Y * 12.0, bd_core::Vec3::NEG_Y, 40.0).map(|h| h.point.y);
         let to_me = me.1 - want;
         let yaw = (-to_me.x).atan2(-to_me.z);
         if let Some(p) = active.world.player_mut(bot).filter(|p| p.alive) {
-            // Held in place until something (a push, a pull, a core) moves them; then free.
-            if p.mv.vel.length() < 0.5 && p.launch.is_none() {
+            // Placed for a moment, then free (a push / pull / core moves them for real).
+            if now < until {
                 p.mv.pos = bd_core::Vec3::new(want.x, ground.map_or(p.mv.pos.y, |g| g + 0.05), want.z);
+                p.mv.vel = bd_core::Vec3::ZERO;
             }
             p.input.yaw = yaw;
             p.input.pitch = 0.0;
@@ -143,7 +146,8 @@ fn dev_plan(active: Option<Res<ActiveWorld>>, mut dev: ResMut<PowersDev>, mut ca
             let Some(n) = who.strip_prefix("bot").and_then(|n| n.parse::<u8>().ok()) else { continue };
             if let [d, lat] = nums[..] {
                 dev.pins.retain(|p| p.0 != PlayerId(n));
-                dev.pins.push((PlayerId(n), d, lat));
+                let until = dev.t + 0.4;
+                dev.pins.push((PlayerId(n), d, lat, until));
             }
             (PlayerId(n), false)
         };

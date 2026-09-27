@@ -1,4 +1,4 @@
-//! WUKONG: telescoping weapons (`Mechanic::Extends`, bd_core v1.7; `constructs/extend.rs`) on the flat
+//! WUKONG: telescoping weapons (`Mechanic::Extends`, bd_core v1.8; `constructs/extend.rs`) on the flat
 //! lab arena (ground top at y = 8): the charged thrust hits far away, the falling pillar craters a line
 //! and knocks up, the pole vault adds velocity along the mirrored aim (and composes with momentum),
 //! the twirl combo still hits, creatures strike from range, and everything is deterministic.

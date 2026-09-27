@@ -33,7 +33,9 @@
     ),
 
     // ---- per tier: [Tiny, Normal, Big, Titan, Signature] ------------------------------------------
-    // gather_*: motes/s drawn in, shell radius (m, × √size), window before the manifest (s), swell sfx.
+    // gather_*: motes/s drawn in, shell radius (m, × √size ≤ ×4: a few m for a sword → across the map;
+    // wide gathers sample the surroundings: leaves / droplets / embers / grit / sky light), travel time
+    // of the farthest motes (s), window before the manifest (s), swell sfx.
     // surge: element emissive spike on the construct (0..1) + decay (s). ring: shockwave particles.
     // fov_punch / caster_shake: caster only. flash_light: lumens at the manifest (comfort: flashes).
     // material: element surface strength. idle_rate: motes/s. light: standing element light (lm).
@@ -41,7 +43,7 @@
     // exit_motes: what it dissolves into. impact_mult: hit juice ×. priority: pools (lights / hums).
     tiers: (
         ( // Tiny: guns, gauntlets, discs, bugs — a flick of motes, no extra sound
-            gather_rate: 60.0, gather_radius: 0.6, gather_secs: 0.1, gather_sfx: "", gather_gain: 0.0,
+            gather_rate: 60.0, gather_radius: 1.2, gather_life: 0.12, gather_secs: 0.1, gather_sfx: "", gather_gain: 0.0,
             surge: 0.35, surge_secs: 0.08, ring: 0, ring_speed: 0.0, burst: 0.0,
             manifest_sfx: "", manifest_gain: 0.0, fov_punch: 0.0, caster_shake: 0.0,
             flash_light: 0.0, flash_range: 0.0, material: 0.35,
@@ -50,7 +52,7 @@
             exit_motes: 6, impact_mult: 1.0, priority: 1.0,
         ),
         ( // Normal: swords, shields, walls, spears — a crisp gather + "shing"
-            gather_rate: 110.0, gather_radius: 0.9, gather_secs: 0.15, gather_sfx: "", gather_gain: 0.0,
+            gather_rate: 110.0, gather_radius: 2.5, gather_life: 0.2, gather_secs: 0.15, gather_sfx: "", gather_gain: 0.0,
             surge: 0.6, surge_secs: 0.12, ring: 14, ring_speed: 6.0, burst: 0.0,
             manifest_sfx: "presence_shing", manifest_gain: 0.8, fov_punch: 0.0, caster_shake: 0.0,
             flash_light: 0.0, flash_range: 0.0, material: 0.55,
@@ -59,7 +61,7 @@
             exit_motes: 14, impact_mult: 1.0, priority: 2.0,
         ),
         ( // Big: dragons, big hammers, vehicles — the world notices
-            gather_rate: 220.0, gather_radius: 2.0, gather_secs: 0.45, gather_sfx: "presence_gather_big", gather_gain: 0.9,
+            gather_rate: 220.0, gather_radius: 8.0, gather_life: 0.45, gather_secs: 0.45, gather_sfx: "presence_gather_big", gather_gain: 0.9,
             surge: 0.9, surge_secs: 0.2, ring: 32, ring_speed: 12.0, burst: 0.9,
             manifest_sfx: "presence_manifest_big", manifest_gain: 1.0, fov_punch: 1.5, caster_shake: 0.08,
             flash_light: 400000.0, flash_range: 14.0, material: 0.8,
@@ -68,7 +70,7 @@
             exit_motes: 36, impact_mult: 1.15, priority: 4.0,
         ),
         ( // Titan: kaiju, giant mechs, meteors, anvils from the sky, legendaries — near Hollow Purple
-            gather_rate: 420.0, gather_radius: 4.5, gather_secs: 1.0, gather_sfx: "presence_gather_titan", gather_gain: 1.0,
+            gather_rate: 420.0, gather_radius: 22.0, gather_life: 0.9, gather_secs: 1.0, gather_sfx: "presence_gather_titan", gather_gain: 1.0,
             surge: 1.0, surge_secs: 0.3, ring: 64, ring_speed: 22.0, burst: 1.6,
             manifest_sfx: "presence_manifest_titan", manifest_gain: 1.0, fov_punch: 3.5, caster_shake: 0.18,
             flash_light: 1500000.0, flash_range: 30.0, material: 1.0,
@@ -77,7 +79,7 @@
             exit_motes: 80, impact_mult: 1.3, priority: 8.0,
         ),
         ( // Signature: domains, orbital strikes, big signature casts (Hollow Purple keeps its own look)
-            gather_rate: 520.0, gather_radius: 5.5, gather_secs: 1.2, gather_sfx: "presence_gather_titan", gather_gain: 1.0,
+            gather_rate: 520.0, gather_radius: 32.0, gather_life: 1.1, gather_secs: 1.2, gather_sfx: "presence_gather_titan", gather_gain: 1.0,
             surge: 1.0, surge_secs: 0.3, ring: 80, ring_speed: 26.0, burst: 2.0,
             manifest_sfx: "presence_manifest_titan", manifest_gain: 1.0, fov_punch: 4.0, caster_shake: 0.2,
             flash_light: 1500000.0, flash_range: 30.0, material: 1.15,
@@ -116,6 +118,19 @@
         unstable_surge: 0.6,
     ),
 
+    // ---- continuous gathers (hold-to-grow energy: rasengan, spirit bomb; GatherFx each frame) -------
+    // radius = clamp(radius_per_m · size, min, max) · (0.5 + 0.5 · charge);
+    // motes/s = min(rate_base + rate_per_m · size, rate_max) · (0.3 + 0.7 · charge).
+    hold: (
+        radius_per_m: 6.0,
+        radius_min: 2.0,
+        radius_max: 60.0,
+        rate_base: 40.0,
+        rate_per_m: 45.0,
+        rate_max: 360.0,
+        max_streams: 8,
+    ),
+
     // ---- budget (8 players × many constructs) ---------------------------------------------------
     budget: (
         max_lights: 4, // pooled, shadowless (the pool is allocated at startup: max 8)
@@ -125,5 +140,7 @@
         lod_full: 22.0, // material + idle motes full within this (m, × √size) …
         lod_zero: 70.0, // … gone beyond this
         hum_range: 40.0,
+        max_rays_per_frame: 24, // surroundings sampling for wide gathers (all of them together)
+        surround_samples: 32,
     ),
 )

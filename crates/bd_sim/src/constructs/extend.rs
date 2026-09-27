@@ -1,4 +1,4 @@
-//! **Telescoping weapons** (`Mechanic::Extends`, bd_core v1.7) — the Ruyi Jingu Bang, the power
+//! **Telescoping weapons** (`Mechanic::Extends`, bd_core v1.8) — the Ruyi Jingu Bang, the power
 //! pole, an extending sword, a telescoping spear, a stretchy fist. Wukong's staff grows from a
 //! needle to a pillar that reaches the heavens, weighs 13,500 jin and is twirled constantly; this is
 //! that, as generic mechanics on any held melee form (guns ignore it).

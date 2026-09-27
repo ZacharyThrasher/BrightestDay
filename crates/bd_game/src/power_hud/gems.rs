@@ -19,9 +19,23 @@ use bevy::prelude::*;
 /// Form-ring fill steps (one prebuilt arc mesh per step).
 const ARC_STEPS: usize = 16;
 /// Camera-space offset of the gem row from the right fist point (up, toward the camera).
-const ROW_OFFSET: Vec3 = Vec3::new(-0.004, 0.017, 0.03);
-const SPACING: f32 = 0.0095;
-const GEM_R: f32 = 0.0034;
+const ROW_OFFSET: Vec3 = Vec3::new(0.006, 0.066, 0.0);
+
+/// `BD_GEM_OFFSET=x,y,z` (dev tuning): overrides [`ROW_OFFSET`].
+fn row_offset() -> Vec3 {
+    static O: std::sync::OnceLock<Vec3> = std::sync::OnceLock::new();
+    *O.get_or_init(|| {
+        std::env::var("BD_GEM_OFFSET")
+            .ok()
+            .and_then(|s| {
+                let v: Vec<f32> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                (v.len() == 3).then(|| Vec3::new(v[0], v[1], v[2]))
+            })
+            .unwrap_or(ROW_OFFSET)
+    })
+}
+const SPACING: f32 = 0.019;
+const GEM_R: f32 = 0.0072;
 
 #[derive(Component)]
 struct GemRoot;
@@ -127,7 +141,7 @@ fn draw(
             *v = vis(show);
         }
         if show {
-            tf.translation = hands.local[1] + ROW_OFFSET;
+            tf.translation = hands.local[1] + row_offset();
         }
     }
     if !show {
@@ -158,7 +172,7 @@ fn draw(
             // Brightness: dim while cooling, full when ready, a white flare on the edge.
             let c = gem.look.color;
             let ready = gem.shown;
-            let glow = if hud.drained { 0.3 } else if gem.is_ready { 7.0 } else { 0.35 + 1.6 * ready * ready };
+            let glow = if hud.drained { 0.3 } else if gem.is_ready { 12.0 } else { 0.35 + 1.6 * ready * ready };
             let white = gem.flash * 10.0;
             let base = if burning { gem.look.form_color } else { c };
             let key = [base[0] * glow + white, base[1] * glow + white, base[2] * glow + white, if gem.is_ready { 1.0 } else { 0.35 }];

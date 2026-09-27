@@ -121,7 +121,7 @@ pub mod chemistry;
 pub mod components;
 pub mod counters;
 pub mod creature;
-pub mod extend; // WUKONG: telescoping weapons (Mechanic::Extends, bd_core v1.7)
+pub mod extend; // WUKONG: telescoping weapons (Mechanic::Extends, bd_core v1.8)
 pub mod forms;
 pub mod giant; // GIANTS: weak points, limbs, topple, rideable colliders, shockwaves, command
 pub mod graft;

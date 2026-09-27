@@ -22,6 +22,9 @@ worktree C:\Sandbox\BrightestDay\bd_dist to the latest green commit (`git -C ../
 repackage dist/BrightestDay (README maps list already updated) → dist/BrightestDay-win64.zip.
 Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (character wins) kept by default.
 **In flight (subagent ids; reports return to this session):**
+- Signature PHASE 4 a67f94557763852e1 (resumed) — saturated/glowy palm beams (HDR core+body+halo, bloom,
+  world light) + PHYSICAL beams (travelling head, steerable, carve tunnels, blocked by barriers) + BEAM
+  CLASH (junction ball drifts toward weaker push; hold to pour willpower; bail anytime; detonates). + GENERIC hold-to-grow thrown energy (palms→overhead by size, tap = base, hit knocks it loose, physical/carving) + generic energy collisions (beam/beam, beam/orb push-back, orb/orb). Presence worker: gather radius scales with tier, motes sampled from surroundings, driven by held size.
 - Match rules a68a4dbccc61a4edc DONE (committed) — per-type construct caps, THEN (scope add) an optional power-up pickup
   mode: kaiju scale / awakening forms / signature ultimates gated behind telegraphed map pickups (heart/egg,
   aura orb; no text), weaker "sputter" version without one, drops on KO, carrier glows + is visible.
@@ -48,7 +51,7 @@ Owner decisions 20:40: strafe lean ON by default; "zombie gojo" → Gojo (charac
   LUNGE fix (owner can't feel it: measure trigger rate, loosen, make it felt), railgun early-release shot.
 - Anti-juggle a98da5aecac02be4b (DONE: combat.ron juggle{}, white outline guard, FFA hash 0x0279296707d1b7e0) — knockback decay + short immunity; also owns the FFA hash A/B
   (currently 0xd1a37fca9b34c73d failing — cause is juggle or casino edits).
-- Signature a67f94557763852e1 — ENERGY ATTACKS = HAND BEAMS (final flash/kamehameha/galick… no gun
+- Signature a67f94557763852e1 DONE (beam reads pale -> presence worker) — ENERGY ATTACKS = HAND BEAMS (final flash/kamehameha/galick… no gun
   model; 2-hand charge orb + palm beam 1P/3P; canonical title when recognised).
 - Intent aafbfbcb5ee31d5c1 DONE (committed) — name targeting bug ("drop a meteor on ethan"), whisper bias w/ player
   names, delivery verbs, ~1,000-phrase golden corpus, stage order, local logs/intent.log + intent_report.

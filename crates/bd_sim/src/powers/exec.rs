@@ -78,7 +78,7 @@ impl World {
         if def.kind.is_pickup() {
             self.take_pickup(i, id);
         } else {
-            self.gain_power(i, id, GainHow::Granted);
+            self.gain_power_at(i, id, GainHow::Granted, split_tier(key).1.unwrap_or(0));
         }
         true
     }

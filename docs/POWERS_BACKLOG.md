@@ -24,3 +24,9 @@ closed-set pieces. Never-list conflicts are adapted or cut. Priority by fun-per-
    construct → gain its graft), **Elden Ring** (Ashes of War grafts, Spirit Ash companions),
    **hero shooters** (ultimates as move pairs: Reinhardt charge, Genji deflect-parry, Tracer blink),
    **Smash** Final Smashes as a party Legendary.
+
+**Landed (powers worker, techniques pass):** DBZ (ultra instinct + mastered, super saiyan 1/2/3/god/blue, kaio-ken
+x1–x20), Naruto (sage mode, kurama mode, sharingan + mangekyo, RINNEGAN flagship, shadow clones), JJK (limitless /
+infinity, black flash, sukuna shrine, ten shadows), Bleach (bankai + getsuga), HxH (nen + 6 type tiers, jajanken),
+armament haki, Luffy's gears 2–5 as gomu tiers; generic effects + mixing + Ascend. Still open: Zelda runes,
+Pokémon moves, Susanoo pilot, domain-per-power, costume hookup of `AscendTints`, audio mapping of `PowerCue`.

@@ -776,10 +776,33 @@ pub mod scenario {
         let others: Vec<PlayerId> = active.world.players.iter().map(|p| p.id).filter(|id| *id != me).collect();
         let (Some(&owner), Some(&far)) = (others.first(), others.get(1)) else { return };
         if !sc.placed {
-            let found = [22.0, 18.0, 26.0, 14.0].iter().find_map(|d| find_spot(&active.world, my_pos, *d));
+            // Open ground: near you, else anywhere on the map (you are moved there).
+            let mut from = my_pos;
+            let mut found = [22.0, 18.0, 26.0].iter().find_map(|d| find_spot(&active.world, my_pos, *d));
+            if found.is_none() {
+                'scan: for gx in -6..=6 {
+                    for gz in -6..=6 {
+                        let (x, z) = (gx as f32 * 14.0, gz as f32 * 14.0);
+                        let Some(h) = bd_core::voxel::raycast(&active.world.voxels, Vec3::new(x, 140.0, z), Vec3::NEG_Y, 160.0) else { continue };
+                        let cand = Vec3::new(x, h.point.y + 0.05, z);
+                        if let Some(f) = find_spot(&active.world, cand, 20.0) {
+                            from = cand;
+                            found = Some(f);
+                            break 'scan;
+                        }
+                    }
+                }
+            }
+            if found.is_some() && from != my_pos {
+                if let Some(p) = active.world.player_mut(me) {
+                    p.mv.pos = from;
+                    p.mv.vel = Vec3::ZERO;
+                }
+            }
+            let my_pos = from;
             let Some((spot, dir)) = found.map(|(s, d)| {
                 // Closer for the up-close shots (the kaiju is pinned there).
-                let dist = match sc.shot.as_str() { "stomp" => 8.5, "sever" | "topple" => 15.0, _ => (s - my_pos).length() };
+                let dist = match sc.shot.as_str() { "stomp" => 10.0, "sever" | "topple" => 15.0, _ => (s - my_pos).length() };
                 let c = my_pos + d * dist;
                 let y = bd_core::voxel::raycast(&active.world.voxels, c + Vec3::Y * 30.0, Vec3::NEG_Y, 80.0).map_or(s.y, |h| h.point.y);
                 (Vec3::new(c.x, y, c.z), d)
@@ -787,7 +810,7 @@ pub mod scenario {
                 // Hilly spawn: straight ahead of the view, on whatever ground is there.
                 (sc.t > 2.5).then(|| {
                     let d = bd_core::input::look_dir(look.yaw, 0.0);
-                    let c = my_pos + d * match sc.shot.as_str() { "stomp" => 8.5, "sever" | "topple" => 15.0, _ => 20.0 };
+                    let c = my_pos + d * match sc.shot.as_str() { "stomp" => 10.0, "sever" | "topple" => 15.0, _ => 20.0 };
                     let y = bd_core::voxel::raycast(&active.world.voxels, c + Vec3::Y * 30.0, Vec3::NEG_Y, 80.0).map_or(my_pos.y, |h| h.point.y);
                     (Vec3::new(c.x, y, c.z), d)
                 })
@@ -850,6 +873,12 @@ pub mod scenario {
         ov.move_x = 0;
         ov.move_z = 0;
         let t = sc.t;
+        if (t * 2.0).floor() != ((t - dt) * 2.0).floor() {
+            if let Some(c) = active.world.constructs.get(id) {
+                let g = &c.ai.giant;
+                info!("giants scenario t={t:.1}: on {} toppled {} stagger {:.2} severed {:#x} legBL {:.0}/{:.0} integrity {:.0} anim {:?} mode {:?}", g.on, g.toppled(), g.stagger, g.severed, g.limb_hp[Limb::LegBL as usize], g.limb_max[Limb::LegBL as usize], c.integrity, c.anim_state, c.ai.mode);
+            }
+        }
         if sc.shot != "ride" {
             if let Some(c) = active.world.constructs.get_mut(id) {
                 c.pos.x = sc.spot.x;
@@ -909,7 +938,7 @@ pub mod scenario {
             "sever" => {
                 if let Some(a) = part_world(&active.world, id, Limb::ArmR) {
                     aim(&mut look, eye, a);
-                    if t > 2.0 && sc.step < 12 && (t * 8.0) as u32 > sc.step + 16 {
+                    if t > 3.0 && sc.step < 12 && (t * 8.0) as u32 > sc.step + 24 {
                         sc.step += 1;
                         active.world.apply_construct_hit(ConstructHit { pierce: false, blunt: false, target: id, source: Some(me), damage: 9.0, impulse: Vec3::ZERO, blade: true, point: a });
                     }
@@ -925,7 +954,7 @@ pub mod scenario {
                 if let Some(k) = active.world.constructs.get(id).map(|c| c.center()) {
                     aim(&mut look, eye, k);
                 }
-                if t > 2.0 && sc.step == 0 {
+                if t > 3.5 && sc.step == 0 && active.world.constructs.get(id).is_some_and(|c| c.ai.giant.on) {
                     sc.step = 1;
                     if let Some(l) = part_world(&active.world, id, Limb::LegBL) {
                         let max = active.world.constructs.get(id).map_or(100.0, |c| c.ai.giant.limb_max[Limb::LegBL as usize]);
@@ -935,9 +964,8 @@ pub mod scenario {
             }
             // You stand in front of it; it stomps (you are its target).
             "stomp" => {
-                if let Some(k) = active.world.constructs.get(id).map(|c| c.center()) {
-                    aim(&mut look, eye, k);
-                }
+                // A victim's view: the feet and the ground the shockwave runs along.
+                aim(&mut look, eye, sc.spot + Vec3::Y * 2.5);
                 if let Some(c) = active.world.constructs.get_mut(id) {
                     c.vel.x = 0.0;
                     c.vel.z = 0.0;

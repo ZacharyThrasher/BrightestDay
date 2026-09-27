@@ -88,3 +88,41 @@ pub fn legendary(mut events: MessageReader<GameEvents>, active: Option<ResMut<Ac
         }
     }
 }
+
+/// `BD_PRESENCE_HOLD=<start>,<secs>[,<element>]`: a stand-in hold-to-grow energy object over the
+/// first bot's head (else the local player's) — writes [`super::gather::GatherFx`] every frame,
+/// growing 0.5 → 8 m, so the continuous gather can be seen / screenshotted before the real
+/// rasengan / spirit bomb lands.
+pub fn hold(
+    time: Res<Time>,
+    active: Option<Res<ActiveWorld>>,
+    views: Res<crate::sim_bridge::WorldViews>,
+    mut out: MessageWriter<super::gather::GatherFx>,
+    mut t: Local<f32>,
+) {
+    static CFG: std::sync::OnceLock<Option<(f32, f32, bd_core::mechanics::Element)>> = std::sync::OnceLock::new();
+    let Some((start, secs, element)) = *CFG.get_or_init(|| {
+        let v = env("BD_PRESENCE_HOLD")?;
+        let p: Vec<&str> = v.split(',').map(str::trim).collect();
+        let e = match p.get(2).copied().unwrap_or("light").to_lowercase().as_str() {
+            "fire" => bd_core::mechanics::Element::Fire,
+            "water" => bd_core::mechanics::Element::Water,
+            "electric" => bd_core::mechanics::Element::Electric,
+            "wind" => bd_core::mechanics::Element::Wind,
+            _ => bd_core::mechanics::Element::Light,
+        };
+        Some((p.first()?.parse().ok()?, p.get(1)?.parse().ok()?, e))
+    }) else {
+        return;
+    };
+    let Some(active) = active else { return };
+    *t += time.delta_secs();
+    let k = (*t - start) / secs.max(0.1);
+    if !(0.0..=1.0).contains(&k) {
+        return;
+    }
+    let who = active.bots.first().map(|b| b.id).or(active.local);
+    let Some(v) = who.and_then(|id| views.player(id)) else { return };
+    let size = 0.5 + 7.5 * k * k;
+    out.write(super::gather::GatherFx { at: v.pos + Vec3::Y * (2.5 + size * 0.6), element, owner: who, key: 1, size, charge: k.sqrt(), color: None });
+}

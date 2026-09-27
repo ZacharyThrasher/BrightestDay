@@ -582,7 +582,7 @@ pub struct GiantState {
 impl GiantState {
     #[inline]
     pub fn toppled(&self) -> bool {
-        self.topple_t >= 0.0
+        self.on && self.topple_t >= 0.0
     }
     #[inline]
     pub fn is_severed(&self, l: Limb) -> bool {

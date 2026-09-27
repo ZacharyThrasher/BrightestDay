@@ -140,7 +140,9 @@ impl Plugin for ExtendPlugin {
             .add_systems(Startup, assets)
             .add_systems(Update, (pole_events.in_set(super::PresentSet::Events), track_poles.after(super::PresentSet::Sync)))
             .add_systems(PostUpdate, place_poles.before(TransformSystems::Propagate))
-            .add_systems(OnExit(AppState::InGame), clear);
+            .add_systems(OnExit(AppState::InGame), clear)
+            .init_resource::<WukongDev>()
+            .add_systems(Update, (dev_cast, dev_world).chain().before(crate::tick::FrameSet::Input));
     }
 }
 
@@ -567,4 +569,86 @@ fn place_poles(
         i += 1;
     }
     let _ = bq;
+}
+
+// ------------------------------------------------------------------------------------ dev
+
+/// Dev (`BD_WUKONG_TEST=thrust|slam|vault`, frame strips in docs/wukong): cast "ruyi jingu bang",
+/// pin a bot ahead, third person, then play the move at t = 3 s (hold PRIMARY 0.7 s, or tap RMB at the
+/// floor while running for the vault). Never set in play.
+#[derive(Resource, Default)]
+struct WukongDev {
+    t: f32,
+    cast: bool,
+    base_yaw: Option<f32>,
+}
+
+fn dev_move() -> Option<&'static str> {
+    static V: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    V.get_or_init(|| std::env::var("BD_WUKONG_TEST").ok().filter(|v| !v.is_empty())).as_deref()
+}
+
+fn dev_cast(time: Res<Time<Real>>, state: Res<State<AppState>>, mut dev: ResMut<WukongDev>, mut caster: crate::console::Caster) {
+    if dev_move().is_none() || *state.get() != AppState::InGame {
+        return;
+    }
+    dev.t += time.delta_secs();
+    if !dev.cast && dev.t >= 1.0 {
+        dev.cast = true;
+        info!("wukong test: casting the staff");
+        caster.cast("ruyi jingu bang", false, 0);
+    }
+}
+
+fn dev_world(
+    active: Option<ResMut<ActiveWorld>>,
+    mut dev: ResMut<WukongDev>,
+    mut look: ResMut<crate::input::LookAngles>,
+    mut ov: ResMut<crate::input::InputOverride>,
+    mut mode: ResMut<super::camera3p::ViewMode>,
+) {
+    let Some(mv) = dev_move() else { return };
+    let Some(mut active) = active else { return };
+    if dev.t <= 0.0 {
+        return;
+    }
+    let t = dev.t;
+    mode.pref_third = true;
+    let base = *dev.base_yaw.get_or_insert(look.yaw);
+    look.yaw = base;
+    look.pitch = match mv {
+        "thrust" => 0.0,
+        _ if t < 2.5 => 0.0,
+        _ => -40f32.to_radians(),
+    };
+    ov.active = true;
+    ov.move_x = 0;
+    ov.move_z = if mv == "vault" && (2.2..3.6).contains(&t) { 1 } else { 0 };
+    ov.held = match mv {
+        "vault" if (3.0..3.05).contains(&t) => buttons::SECONDARY,
+        "thrust" | "slam" if (3.0..3.7).contains(&t) => buttons::PRIMARY,
+        _ => 0,
+    };
+    let Some(me) = active.local else { return };
+    let (eye, fwd) = match active.world.player(me) {
+        Some(p) => {
+            let l = bd_core::input::look_dir(base, 0.0);
+            (p.mv.pos, l)
+        }
+        None => return,
+    };
+    if let Some(p) = active.world.player_mut(me) {
+        p.willpower = p.willpower.max(100.0);
+    }
+    let dist = if mv == "thrust" { 20.0 } else { 11.0 };
+    if mv != "vault"
+        && t < 4.2
+        && let Some(bot) = active.bots.first().map(|b| b.id)
+        && let Some(p) = active.world.player_mut(bot)
+    {
+        let mut spot = eye + fwd * dist;
+        spot.y = eye.y;
+        p.mv.pos = spot;
+        p.mv.vel = bd_core::Vec3::ZERO;
+    }
 }

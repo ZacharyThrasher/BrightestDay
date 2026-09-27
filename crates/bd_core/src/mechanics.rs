@@ -178,7 +178,7 @@ pub enum Mechanic {
     /// weapon whose length is live state. Swings twirl in big arcs; a charged release shoots it out
     /// tens of metres as a line strike and snaps it back; charged while aimed down (or in the air) it
     /// grows into a falling pillar that craters a line; alt-fire into a surface plants it and vaults
-    /// the wielder along the aim. Creatures that carry it strike from far outside their body. (v1.7)
+    /// the wielder along the aim. Creatures that carry it strike from far outside their body. (v1.8)
     Extends,
 }
 

@@ -355,6 +355,32 @@ Speed `≈ 9 · (scale/2)^-0.25` (Fast ×1.6, Heavy ×0.7). Duration 14 s (Kaiju
   homing units, 3 dmg each, fragile), **Constrict** (wrap & squeeze DoT, tether breaks it).
 - Players can tether onto creatures (swing around a Kaiju!). Creatures can be clashed and shattered.
 
+### 4e. Giants — kaiju you fight, not death balls (`constructs/giant.rs`, `titan.rs`; `combat.ron` → `giants`)
+Owner: "giant summons should feel like part of the fight … not giant death balls." A creature that is a
+Kaiju, colossal, or ≥ `min_height` (6 m) tall (autonomous only) is a **giant**:
+- **Anatomy** from the same `ShapeSpec` the client draws: one box per part (torso, head, arms, legs, wings,
+  every tail segment — a staircase up the back), grouped into limbs; weak points **nape** (behind the head),
+  **core** (chest), **eye**. Sent once (`GiantEvent::Born`, late-join manifest) so replicas collide identically.
+- **Weak points**: Blade / Pierce ×3 nape, ×2 core, ×2.5 eye (other hits get half the bonus, ×1.5 more while
+  toppled); per-attacker cooldown 0.3 s; a crit ≥ 4 damage **staggers** (0.9 s, attack cancelled; 2 s immune);
+  a separate weak pool (50 % of max integrity) **fells** it.
+- **Limbs** (arm 16 %, leg 22 %, tail 20 %, wing 14 % of max integrity): arms / tail / wings are **severed** at 0
+  (collider gone, that attack gone — no swipe from that arm, no tail sweep, no flight; voxel debris); a hurt leg
+  **limps** (up to −55 % speed); a leg at 0 **topples** it onto that side (0.55 s fall, 2.5 s down with the nape at
+  ground height, 0.8 s up; the leg returns at 50 %; 6 s before another topple).
+- **Solid & rideable**: part boxes are solid, anchorable colliders that carry the giant's displacement velocity
+  **and spin** (`Collider::surface_vel`) — stand / run on it, tether to the exact part (the anchor follows it),
+  wall-touch refresh on its body. Snapshots carry construct velocity, spin and a 4 × i16 rotation, so
+  prediction carries a rider exactly like the host.
+- **Readable, dodgeable**: every attack gets a warning (glow + cue) before its clip (melee 0.3 s, stomp / tail
+  0.4 s). Stomps: a foot blow, then a **shockwave ring** (15 m/s, reach 1.2 × height ≤ 30 m) that only hits
+  grounded players within 0.9 m of the ground — any jump clears it. Swipes sweep a 150° arc (dodge i-frames go
+  through). Walking never hurts (footsteps only crack the ground); the tail sweep stays below riders.
+- **Command**: hold the crosshair on an enemy 0.25 s (or name / hit them) → the giant focuses them 10 s.
+- **Hijack** (`hijack`, on): an enemy at the nape holding Charge for 2.5 s takes it over.
+- **Titans** (piloted walkers): the pilot's movement state *is* the body (predicted like on-foot movement): full
+  speed in 0.2 s, stop in 0.12 s, strafing, torso lags the aim 0.12 s, Dodge = dash (2 charges, 5 s each,
+  2.6 × walk speed), head-height cockpit camera, landing crunch / dash thud.
 ### Structures (placed at aim, facing you)
 Wall (blocks everything, 6×4 m default), Ramp (**Launch**; a surfable slope — lets you build your own
 movement tech), Pillar (a fresh tether anchor anywhere, e.g. over the void), Dome (shield bubble around
@@ -567,7 +593,29 @@ grab it; held until KO, then it drops where you fell, like a fruit (the fight ov
 of the devil-fruit rules: no Water drain, no seastone, no faster void sinking. An authored `weak`
 element still drains any power for 3 s (kryptonite = Poison). Gated only by the powers toggle.
 Transforms and companions are data on any kind (a Zoan-style origin is still `Origin`).
-**One power slot:** a new power always replaces the one you hold (a replaced fruit/origin drops at your
+**Techniques** (`kind: Technique`: ultra instinct, super saiyan, kaio-ken, sage / kurama mode, sharingan,
+rinnegan, shadow clones, limitless, black flash, sukuna, ten shadows, bankai, nen, armament haki): SAY the name
+and it is yours until KO (technique cost, no pickup). **Tiers** (`tiers: [...]`, max 15) are picked by phrase
+("super saiyan blue", "kaioken times ten", "gear second"…; a technique's tier names also grant it at that tier;
+saying the power's own name again = base); a tier may replace body / moves / effects (its numbers are totals)
+and add graft / shouts / incantations + delivery. **Generic effects** (`effects: [...]`, `bd_sim::powers::effects`):
+`AutoDodge{chance,cooldown}` (a dodgeable hit may start the ordinary dodge sideways; hash roll, no RNG stream),
+`ProjectileSlowField{radius,factor}` (enemy projectiles + thrown objects keep `factor` of their speed per 0.1 s,
+never below 1.6 m/s — they still arrive; hitscan / melee untouched), `SelfDrain{damage_pct_per_s,willpower_per_s}`,
+`PowerMult{damage,speed,knockback,cooldown}` (speed is predicted), `CritChance{chance,mult,fx}` (melee / shove
+connects), `ReadSlow{radius}` (presentation only: incoming shots get a telegraph ring for the holder).
+New move ops: `Yank` (Universal Pull), `Singularity` (Planetary Devastation: a rising gravity core pulling
+enemies / loose constructs / ≤ 24 carved chunks, capturing enemies until it collapses or they dodge / tether
+out; announced by the spectacle cut-in), `Tier(n)`, `Cast{signature, merge}` (signature amplifier from a move).
+Moves ≤ 4: G tap, G hold, slots 2 / 3 by their shouts. **ASCEND** (`ascend: (...)` on a power, tier or transform;
+presentation only): the one transformation moment (windup pose → aura → burst → title → tint hook → linger);
+the first time per round is the AWAKENING (longer, music stinger). `claim: ["infinity"]` keeps a common word.
+**Powers MIX (owner):** a player holds up to `max_powers` = 3 powers. Every held power's body, graft (its
+lend-graft on your constructs) and effects apply at once; G fires the ACTIVE power (per-power cooldowns);
+saying a held power's name makes it active (free), a G double-tap cycles; a shout of any held power runs that
+power's move (cross-power chains). Beyond 3 the oldest goes (a pickup drops at your feet). **Fruit on fruit →
+you explode; a second companion (stand) replaces the first.** KO drops every power.
+*(Superseded rule:)* **One power slot:** a new power always replaces the one you hold (a replaced fruit/origin drops at your
 feet; a replaced stand is gone), **except fruit on fruit → you explode**. **Random pools never cross:**
 "devil fruit" rolls devil fruits only (never origins or mutagens), "stand arrow" only stands, "mutagen"
 only `mutagen_*`, `random:origin` only origins.

@@ -15,8 +15,11 @@ pub struct TierFeel {
     // ---- GATHER (overlaps the forming windup; never adds latency) ----
     /// Motes drawn in per second at the peak of the gather (ramps up k²).
     pub gather_rate: f32,
-    /// Shell the motes start from (m), × sqrt(size).
+    /// Shell the motes start from (m), × √size (≤ ×2): a few metres for a sword, across the map for
+    /// a Signature (the far ones are sampled from the surroundings: leaves, droplets, embers, grit, sky).
     pub gather_radius: f32,
+    /// Travel time of the farthest gather motes (s; capped by the window).
+    pub gather_life: f32,
     /// Seconds before the manifest the gather starts (clamped to the forming time).
     pub gather_secs: f32,
     /// Gather sound ("" = none; the assembly's own construct_form covers small casts).
@@ -75,7 +78,8 @@ impl TierFeel {
     fn tiny() -> Self {
         TierFeel {
             gather_rate: 60.0,
-            gather_radius: 0.6,
+            gather_radius: 1.2,
+            gather_life: 0.12,
             gather_secs: 0.10,
             gather_sfx: String::new(),
             gather_gain: 0.0,
@@ -106,7 +110,8 @@ impl TierFeel {
     fn normal() -> Self {
         TierFeel {
             gather_rate: 110.0,
-            gather_radius: 0.9,
+            gather_radius: 2.5,
+            gather_life: 0.2,
             gather_secs: 0.15,
             surge: 0.6,
             surge_secs: 0.12,
@@ -127,7 +132,8 @@ impl TierFeel {
     fn big() -> Self {
         TierFeel {
             gather_rate: 220.0,
-            gather_radius: 2.0,
+            gather_radius: 8.0,
+            gather_life: 0.45,
             gather_secs: 0.45,
             gather_sfx: "presence_gather_big".into(),
             gather_gain: 0.9,
@@ -159,7 +165,8 @@ impl TierFeel {
     fn titan() -> Self {
         TierFeel {
             gather_rate: 420.0,
-            gather_radius: 4.5,
+            gather_radius: 22.0,
+            gather_life: 0.9,
             gather_secs: 1.0,
             gather_sfx: "presence_gather_titan".into(),
             gather_gain: 1.0,
@@ -191,7 +198,8 @@ impl TierFeel {
     fn signature() -> Self {
         TierFeel {
             gather_rate: 520.0,
-            gather_radius: 5.5,
+            gather_radius: 32.0,
+            gather_life: 1.1,
             gather_secs: 1.2,
             ring: 80,
             ring_speed: 26.0,
@@ -253,11 +261,15 @@ pub struct Budget {
     pub lod_zero: f32,
     /// Hums are audible within this (m, × sqrt(size)).
     pub hum_range: f32,
+    /// Surroundings sampling for wide gathers: downward rays per frame (all gathers) and samples
+    /// kept per gather.
+    pub max_rays_per_frame: u32,
+    pub surround_samples: usize,
 }
 
 impl Default for Budget {
     fn default() -> Self {
-        Budget { max_lights: 4, max_flash_lights: 2, max_hums: 6, max_motes_per_frame: 700, lod_full: 22.0, lod_zero: 70.0, hum_range: 40.0 }
+        Budget { max_lights: 4, max_flash_lights: 2, max_hums: 6, max_motes_per_frame: 700, lod_full: 22.0, lod_zero: 70.0, hum_range: 40.0, max_rays_per_frame: 24, surround_samples: 32 }
     }
 }
 
@@ -306,6 +318,8 @@ pub struct PresenceTuning {
     pub tiers: [TierFeel; 5],
     pub elements: Vec<(Element, ElementFeel)>,
     pub motion: MotionFeel,
+    /// Continuous gathers of hold-to-grow energy objects ([`super::gather::GatherFx`]).
+    pub hold: super::gather::HoldGather,
     pub budget: Budget,
 }
 
@@ -330,6 +344,7 @@ impl Default for PresenceTuning {
                 el(Element::Atomic, "presence_hum_atomic", 1.0, 1.0, 1.3),
             ],
             motion: MotionFeel::default(),
+            hold: super::gather::HoldGather::default(),
             budget: Budget::default(),
         }
     }
